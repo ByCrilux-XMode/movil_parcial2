@@ -68,7 +68,7 @@ class _ProductDetailDialogState extends State<ProductDetailDialog> {
         'Authorization': 'Bearer $token'},
         body: jsonEncode({
         "carritoId": idCarrito,
-        "prodVariableId": variante["id"],
+        "prodVarianteId": variante["id"],
         "cantidad": cantidad,})
     );
     if (responde.statusCode == 200) {
@@ -82,8 +82,10 @@ class _ProductDetailDialogState extends State<ProductDetailDialog> {
       Navigator.pop(context);
     }else{
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Error)")),
+        SnackBar(content: Text("Error")),
       );
+      print("--------");
+      print(responde.body);
     }
   }
 

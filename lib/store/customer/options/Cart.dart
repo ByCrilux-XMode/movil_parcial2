@@ -14,6 +14,7 @@ class _CartPageState extends State<CartPage> {
   List<dynamic> _items = [];
   bool _loading = true;
   bool _isUpdating  = false;
+  String _paymentType = 'QR';
 
   @override
   void initState() {
@@ -63,7 +64,7 @@ class _CartPageState extends State<CartPage> {
         },
         body: jsonEncode({
           'carritoId': carritoId,
-          'prodVariableId': prodVarianteId,
+          'prodVarianteId': prodVarianteId,
           'cantidad': newCantidad,
         }),
       );
@@ -86,7 +87,6 @@ class _CartPageState extends State<CartPage> {
   Future<void> _deleteItem(int id) async {
     final token = await Config().obtenerDato('token');
     final url = Uri.parse('${Config.baseUrl}/venta/itemcarrito/$id');
-
     final response = await http.delete(url, headers: {
       'Authorization': 'Bearer $token',
     });
@@ -95,6 +95,40 @@ class _CartPageState extends State<CartPage> {
       setState(() {
         _items.removeWhere((item) => item['id'] == id);
       });
+    }
+  }
+  Future<void> _createCompra() async {
+    final token = await Config().obtenerDato('token');
+    final clienteId = await Config().obtenerDato('id');
+    final url = Uri.parse('${Config.baseUrl}/venta/venta'); //se crea la venta
+    try{
+      final response = await http.post(url,
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer $token',
+          },
+          body: jsonEncode({
+            'clienteID': clienteId,
+            'vendedorID': '1',
+            'metodoPago': _paymentType,
+            'tipoVenta': 'ONLINE'
+          })
+      );
+      final data = jsonDecode(response.body);
+      Config().GuardarAlgunDato('idVenta', data['id']);
+      print("-------------------------");
+      print(url);
+      print(clienteId);
+      print(token);
+      print(response.body);
+      print(response.statusCode);
+      print("-------------------------");
+    }catch(e){
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Error al crear la compra'),
+        ),
+      );
     }
   }
 
@@ -107,6 +141,51 @@ class _CartPageState extends State<CartPage> {
     }
 
     return Scaffold(
+      persistentFooterButtons: [
+        Center(
+          child: Column(
+            children: [
+              RadioListTile<String>(
+                title: const Text('Pago con QR'),
+                value: 'QR',
+                groupValue: _paymentType,
+                onChanged: (value) {
+                  setState(() {
+                    _paymentType = value!;
+                  });
+                },
+              ),
+              RadioListTile<String>(
+                title: const Text('Pago con Tarjeta'),
+                value: 'Tarjeta',
+                groupValue: _paymentType,
+                onChanged: (value) {
+                  setState(() {
+                    _paymentType = value!;
+                  });
+                },
+              ),
+              Text(
+                'Método seleccionado: $_paymentType',
+                style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 10),
+              ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.green,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 15),
+                ),
+                child: const Text('Comprar', style: TextStyle(fontSize: 20)),
+                onPressed: () {
+                  _createCompra();
+                },
+              ),
+            ],
+          ),
+        )
+
+      ],
       body: _items.isEmpty
           ? const Center(child: Text('Tu carrito está vacío.'))
           : ListView.builder(
@@ -142,6 +221,7 @@ class _CartPageState extends State<CartPage> {
                         Text('Talla: ${talla['talla']}'),
                         Text('Precio: \$${precio.toStringAsFixed(2)}'),
                         Text('Total: \$${total.toStringAsFixed(2)}'),
+                        Text('code: ${talla['id']}'),
                         const SizedBox(height: 8),
                         Row(
                           children: [
@@ -180,8 +260,7 @@ class _CartPageState extends State<CartPage> {
                               onPressed: _isUpdating ? null : () => _deleteItem(item['id']),
                             ),
                           ],
-                        )
-
+                        ),
                       ],
                     ),
                   ),
