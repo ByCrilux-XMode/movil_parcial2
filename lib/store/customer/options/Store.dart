@@ -186,7 +186,7 @@ class _StoreState extends State<Store> {
                               style: const TextStyle(
                                   color: Colors.green),
                             ),
-                            Text("Stock: ${producto["stock"]}"),
+                            Text("code: ${producto["id"]}"),
                             const SizedBox(height: 5),
                           ],
                         ),

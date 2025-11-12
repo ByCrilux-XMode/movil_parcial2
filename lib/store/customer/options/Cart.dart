@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:movil_parcial2/settings/conf.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class CartPage extends StatefulWidget {
   const CartPage({Key? key}) : super(key: key);
@@ -10,7 +11,7 @@ class CartPage extends StatefulWidget {
   State<CartPage> createState() => _CartPageState();
 }
 
-class _CartPageState extends State<CartPage> {
+class _CartPageState extends State<CartPage> with WidgetsBindingObserver {
   List<dynamic> _items = [];
   bool _loading = true;
   bool _isUpdating  = false;
@@ -20,6 +21,19 @@ class _CartPageState extends State<CartPage> {
   void initState() {
     super.initState();
     _fetchCartItems();
+    WidgetsBinding.instance.addObserver(this);
+  }
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      print("Volviendo a la app, refrescando carrito...");
+      _fetchCartItems();
+    }
   }
 
   Future<void> _fetchCartItems() async {
@@ -97,39 +111,85 @@ class _CartPageState extends State<CartPage> {
       });
     }
   }
+
   Future<void> _createCompra() async {
-    final token = await Config().obtenerDato('token');
-    final clienteId = await Config().obtenerDato('id');
-    final url = Uri.parse('${Config.baseUrl}/venta/venta'); //se crea la venta
-    try{
-      final response = await http.post(url,
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': 'Bearer $token',
-          },
-          body: jsonEncode({
-            'clienteID': clienteId,
-            'vendedorID': '1',
-            'metodoPago': _paymentType,
-            'tipoVenta': 'ONLINE'
-          })
+    if (_items.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Tu carrito está vacío.')),
       );
-      final data = jsonDecode(response.body);
-      Config().GuardarAlgunDato('idVenta', data['id']);
-      print("-------------------------");
-      print(url);
-      print(clienteId);
-      print(token);
+      return;
+    }
+
+    setState(() {
+      _isUpdating = true;
+    });
+    try {
+      final token = await Config().obtenerDato('token');
+      final url = Uri.parse('${Config.baseUrl}/venta/venta/generar-pago');
+
+      // 1. Construir el payload para el backend
+      List<Map<String, dynamic>> itemsPayload = _items.map((item) {
+        return {
+          'prodVarianteId': item['prodVariante']['id'],
+          'cantidad': item['cantidad'],
+        };
+      }).toList();
+
+      // 2. Llamar al nuevo endpoint
+      final response = await http.post(
+        url,
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+        body: jsonEncode({
+          'metodoPago': _paymentType,
+          'items': itemsPayload,
+        }),
+      );
+      print("-------------------");
       print(response.body);
       print(response.statusCode);
-      print("-------------------------");
+      print("-------------------");
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        final String urlPasarela = data['urlPasarelaPagos'];
+
+        // 3. Lanzar la URL de Libélula
+        final Uri launchUri = Uri.parse(urlPasarela);
+        if (await canLaunchUrl(launchUri)) {
+          await launchUrl(launchUri, mode: LaunchMode.externalApplication);
+
+          // 4. Mostrar mensaje y refrescar carrito (que ahora está vacío)
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Redirigiendo a la pasarela de pago...'),
+              backgroundColor: Colors.blue,
+            ),
+          );
+          _fetchCartItems(); // El backend ya vació el carrito
+        } else {
+          throw Exception('No se pudo abrir la URL: $urlPasarela');
+        }
+
+      } else {
+        // Error del backend
+        final data = jsonDecode(response.body);
+        throw Exception(data['message'] ?? 'Error al generar el pago');
+      }
     }catch(e){
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Error al crear la compra'),
+      ScaffoldMessenger(
+        child: SnackBar(
+          content: Text(e.toString()),
+          backgroundColor: Colors.red,
         ),
       );
-    }
+    }finally{
+      setState(() {
+        _isUpdating = false;
+      });
+    };
+
   }
 
   @override

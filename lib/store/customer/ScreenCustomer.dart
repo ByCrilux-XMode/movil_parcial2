@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:movil_parcial2/settings/conf.dart';
 import 'package:movil_parcial2/store/customer/options/Store.dart';
 import 'package:movil_parcial2/store/customer/options/Cart.dart';
+import 'package:movil_parcial2/store/customer/options/Sales.dart';
+import 'package:movil_parcial2/store/customer/options/Profile.dart';
 import 'package:http/http.dart' as http;
 class ScreenCustomer extends StatefulWidget{
   const ScreenCustomer({super.key});
@@ -85,9 +87,9 @@ class _ScreenCustomerState extends State<ScreenCustomer> {
       case 'Carrito':
         return const CartPage();
       case 'Compras':
-        return const Text('construccion');
+        return const SalesPage();
       case 'Perfil':
-        return const Text('perfil');
+        return const Profile();
       default: {
         return const Text('Bienvenido');
       }

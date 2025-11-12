@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:movil_parcial2/settings/conf.dart';
 import 'package:http/http.dart' as http;
 import 'package:movil_parcial2/store/customer/ScreenCustomer.dart';
+import 'package:movil_parcial2/store/staff/ScreenStaff.dart';
 void main() {
   runApp(const MyApp());
 }
@@ -61,10 +62,28 @@ class _LoginPageState extends State<LoginPage>{
       Config().GuardarAlgunDato("rol", data["usuario"]["rolNombre"]);
 
       //ROLE_CLIENTE, ROLE_VENDEDOR, ROLE_ADMIN
-      if(data["usuario"]["rolNombre"] == "ROLE_CLIENTE"){
-        Navigator.push(context, MaterialPageRoute(builder: (context) => const ScreenCustomer()));
-      }else{
-        print(data["usuario"]["rolNombre"]);
+      final String rol = data["usuario"]["rolNombre"];
+
+      FocusScope.of(context).unfocus();
+
+      if(rol == "ROLE_CLIENTE"){
+        Navigator.push(
+            context,
+            MaterialPageRoute(builder: (context) => const ScreenCustomer())
+        );
+      } else if (rol == "ROLE_VENDEDOR" || rol == "ROLE_ADMIN") {
+        Navigator.push(
+            context,
+            MaterialPageRoute(
+                builder: (context) => ScreenStaff(rol: rol)
+            )
+        );
+      } else {
+        // Maneja un rol inesperado
+        setState(() {
+          _errorMessage = "Rol de usuario no reconocido.";
+        });
+        print("Rol desconocido: $rol");
       }
     }
     }catch (valor){
